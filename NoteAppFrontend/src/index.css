@@ -1,0 +1,278 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Принудительная светлая тема и базовые цвета */
+:root {
+    color-scheme: light !important;
+    background-color: #F9FAFB !important;
+    color: #111827 !important;
+}
+
+/* Глобальные стили для всего приложения */
+body, #root {
+    background-color: #F9FAFB !important;
+    color: #111827 !important;
+}
+
+/* Стили для логотипа */
+.text-indigo-600,
+a.text-indigo-600 {
+    color: #4F46E5 !important;
+}
+
+/* Стили для всех заголовков */
+h1, h2, h3, h4, h5, h6 {
+    color: #111827 !important;
+}
+
+/* Стили для заголовков заметок */
+.text-2xl:not(a):not(.text-indigo-600),
+.text-3xl:not(a):not(.text-indigo-600) {
+    color: #111827 !important;
+}
+
+/* Стили для всех кнопок и интерактивных элементов */
+button,
+[role="button"],
+[type="button"],
+.dropdown-content,
+div[role="menu"],
+div[role="menu"] * {
+    background-color: transparent !important;
+    color: #4B5563 !important;
+}
+
+/* Стили для полей ввода в формах авторизации */
+form:not(.note-form) input,
+form:not(.note-form) textarea,
+form:not(.note-form) select {
+    background-color: white !important;
+    color: #111827 !important;
+    border: 1px solid #E5E7EB !important;
+}
+
+/* Стили для полей редактирования заметок */
+.note-form input,
+.note-form textarea {
+    background-color: white !important;
+    color: #111827 !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* Стили для полей ввода дат */
+input[type="date"] {
+    background-color: white !important;
+    color: #111827 !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Стили для автозаполнения */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: #111827 !important;
+}
+
+/* Стили для выпадающих меню и панелей */
+.dropdown-content,
+div[role="menu"],
+.menu-item {
+    background-color: white !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Мобильные стили для портретной ориентации */
+@media (max-width: 768px) and (orientation: portrait) {
+    /* Уменьшаем отступы на мобильных */
+    .py-8 {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .mb-8 {
+        margin-bottom: 1rem !important;
+    }
+
+    .gap-8 {
+        gap: 1rem !important;
+    }
+
+    .p-6 {
+        padding: 1rem !important;
+    }
+
+    /* Стили для полей ввода дат на мобильных */
+    input[type="date"] {
+        background-color: white !important;
+        color: #111827 !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        border: 1px solid #E5E7EB !important;
+        border-radius: 0.75rem !important;
+    }
+
+    /* Стили только для заголовков форм на мобильных */
+    form h2.text-2xl,
+    form h2.text-3xl {
+        font-size: 1.25rem !important;
+        line-height: 1.75rem !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+        letter-spacing: -0.025em !important;
+    }
+
+    /* Стили для заголовка в панели редактирования заметки */
+    input.text-2xl[type="text"],
+    input.text-2xl {
+        font-size: 1.125rem !important;
+        line-height: 1.5rem !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        width: 100% !important;
+    }
+}
+
+/* Мобильные стили для альбомной ориентации */
+@media (max-width: 768px) and (orientation: landscape) {
+    /* Оптимизируем отступы для альбомной ориентации */
+    .py-8 {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+
+    .mb-8 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .gap-8 {
+        gap: 0.75rem !important;
+    }
+
+    .p-6 {
+        padding: 0.75rem !important;
+    }
+
+    /* Настраиваем высоту для списка заметок и панели редактирования */
+    .h-\[calc\(100vh-400px\)\] {
+        height: calc(100vh - 120px) !important;
+        min-height: 250px !important;
+    }
+
+    /* Оптимизируем размер шрифта */
+    input.text-2xl[type="text"],
+    input.text-2xl {
+        font-size: 1rem !important;
+        line-height: 1.25rem !important;
+    }
+
+    /* Компактные стили для панели фильтрации */
+    .flex-col.md\:flex-row {
+        flex-direction: row !important;
+    }
+
+    .gap-4 {
+        gap: 0.5rem !important;
+    }
+
+    /* Уменьшаем отступы в списке заметок */
+    .p-4 {
+        padding: 0.5rem !important;
+    }
+
+    /* Настраиваем панель фильтрации */
+    .bg-white.rounded-2xl.shadow-lg.p-4.sm\:p-6.mb-8 {
+        padding: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Настраиваем размеры панелей */
+    .md\:w-80 {
+        width: 40% !important;
+        min-width: 280px !important;
+    }
+
+    .flex-1 {
+        flex: 1 1 60% !important;
+    }
+
+    /* Улучшаем отображение списка заметок */
+    .overflow-y-auto {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Настраиваем контейнер с заметками */
+    .flex.gap-8 {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        height: calc(100vh - 120px) !important;
+    }
+
+    /* Стили для панели редактирования */
+    .bg-white.h-full.rounded-2xl.shadow-lg.p-6 {
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Настраиваем textarea в панели редактирования */
+    textarea.w-full.h-\[calc\(100\%-80px\)\] {
+        flex: 1 !important;
+        height: auto !important;
+        min-height: 150px !important;
+    }
+}
+
+/* Сохраняем стили для заголовков заметок */
+h2:not(form h2),
+.text-2xl:not(form .text-2xl):not(input.text-2xl),
+.text-3xl:not(form .text-3xl) {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+    font-weight: 600 !important;
+}
+
+/* Логотип */
+.text-indigo-600,
+a.text-indigo-600 {
+    color: #4F46E5 !important;
+}
+
+/* Принудительные стили для темного текста */
+.text-gray-600,
+.text-gray-700,
+.text-gray-800,
+.text-gray-900 {
+    color: #4B5563 !important;
+}
+
+/* Стили для основных действий */
+.bg-indigo-600 {
+    background-color: #4F46E5 !important;
+    color: white !important;
+}
+
+.hover\:bg-indigo-700:hover {
+    background-color: #4338CA !important;
+}
+
+/* Базовые стили компонентов */
+html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}

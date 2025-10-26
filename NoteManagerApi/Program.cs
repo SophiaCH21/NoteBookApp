@@ -147,9 +147,9 @@ using (var scope = app.Services.CreateScope())
                 var pass = creds.ElementAtOrDefault(1);
                 var host = uri.Host;
                 var port = uri.IsDefaultPort ? 5432 : uri.Port;
-                var db   = uri.AbsolutePath.TrimStart('/');
+                var dbName = uri.AbsolutePath.TrimStart('/');
 
-                logger.LogInformation("🔍 DB host: {Host}, port: {Port}, db: {Db}, user: {User}", host, port, db, user);
+                logger.LogInformation("🔍 DB host: {Host}, port: {Port}, db: {Db}, user: {User}", host, port, dbName, user);
 
                 // DNS
                 try {
@@ -160,13 +160,20 @@ using (var scope = app.Services.CreateScope())
                 }
 
                 // TCP
-                try {
-                    using var tcp = new TcpClient();
-                    tcp.ReceiveTimeout = 10000; tcp.SendTimeout = 10000;
-                    tcp.Connect(host, port);
-                    logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", host, port);
-                } catch (Exception ex) {
-                    logger.LogError(ex, "❌ TCP connect to {Host}:{Port} FAILED", host, port);
+                if (!string.IsNullOrEmpty(host))
+                {
+                    try {
+                        using var tcp = new TcpClient();
+                        tcp.ReceiveTimeout = 10000; tcp.SendTimeout = 10000;
+                        tcp.Connect(host, port);
+                        logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", host, port);
+                    } catch (Exception ex) {
+                        logger.LogError(ex, "❌ TCP connect to {Host}:{Port} FAILED", host, port);
+                    }
+                }
+                else
+                {
+                    logger.LogError("❌ Host is null or empty");
                 }
 
                 // Прямая проверка Npgsql
@@ -197,16 +204,18 @@ using (var scope = app.Services.CreateScope())
                 {
                     Timeout = 10,
                     CommandTimeout = 10,
-                    SslMode = Npgsql.SslMode.Require,
-                    TrustServerCertificate = true
+                    SslMode = Npgsql.SslMode.Require
                 };
 
                 logger.LogInformation("🔍 DB host: {Host}, port: {Port}, db: {Db}, user: {User}", csb.Host, csb.Port, csb.Database, csb.Username);
 
-                using var tcp = new TcpClient();
-                tcp.ReceiveTimeout = 10000; tcp.SendTimeout = 10000;
-                tcp.Connect(csb.Host, csb.Port);
-                logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", csb.Host, csb.Port);
+                if (!string.IsNullOrEmpty(csb.Host))
+                {
+                    using var tcp = new TcpClient();
+                    tcp.ReceiveTimeout = 10000; tcp.SendTimeout = 10000;
+                    tcp.Connect(csb.Host, csb.Port);
+                    logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", csb.Host, csb.Port);
+                }
 
                 using var npg = new Npgsql.NpgsqlConnection(csb.ConnectionString);
                 npg.Open();

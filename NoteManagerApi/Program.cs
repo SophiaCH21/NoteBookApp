@@ -134,6 +134,7 @@ using (var scope = app.Services.CreateScope())
     {
         // Логируем информацию о подключении
         var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+        logger.LogInformation("🔍 RAW Connection String: {ConnStr}", connStr ?? "NULL");
         // Детальная диагностика подключения к PostgreSQL (поддержка URL и key=value)
         if (!string.IsNullOrEmpty(connStr) && (connStr.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
             || connStr.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
@@ -251,6 +252,7 @@ using (var scope = app.Services.CreateScope())
 
         // Проверяем подключение к БД через EF Core
         logger.LogInformation("Проверяем подключение к базе данных через EF Core...");
+        logger.LogInformation("🔍 EF Core Connection String: {EfConnStr}", db.Database.GetConnectionString() ?? "NULL");
         if (db.Database.CanConnect())
         {
             logger.LogInformation("✅ База данных доступна! Применяем миграции...");

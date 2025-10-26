@@ -122,7 +122,7 @@ builder.Services.AddScoped<JwtTokenGenerator>();
 
 var app = builder.Build();
 
-// Автоматическое применение миграций при старте
+// Детальное логирование и применение миграций
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -130,27 +130,53 @@ using (var scope = app.Services.CreateScope())
     
     try
     {
-        // Проверяем подключение к БД
-        if (db.Database.CanConnect())
+        // Логируем информацию о подключении
+        var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrEmpty(connStr))
         {
-            logger.LogInformation("База данных доступна. Пытаемся применить миграции...");
-            db.Database.Migrate();
-            logger.LogInformation("Миграции успешно применены.");
+            var maskedConnStr = connStr.Length > 50 ? connStr.Substring(0, 50) + "..." : connStr;
+            logger.LogInformation("Connection string начинается с: {ConnectionStart}", maskedConnStr);
+            
+            if (connStr.Contains("postgresql://") || connStr.Contains("postgres://"))
+            {
+                logger.LogInformation("Используется PostgreSQL провайдер");
+            }
+            else
+            {
+                logger.LogInformation("Используется SQL Server провайдер");
+            }
         }
         else
         {
-            logger.LogWarning("База данных недоступна. Миграции не применены.");
+            logger.LogError("Connection string пуст или не найден!");
+        }
+
+        // Проверяем подключение к БД
+        logger.LogInformation("Проверяем подключение к базе данных...");
+        if (db.Database.CanConnect())
+        {
+            logger.LogInformation("✅ База данных доступна! Применяем миграции...");
+            db.Database.Migrate();
+            logger.LogInformation("✅ Миграции успешно применены.");
+        }
+        else
+        {
+            logger.LogError("❌ База данных НЕДОСТУПНА. Проверьте connection string и доступность БД.");
         }
     }
     catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException != null && 
         (ex.InnerException.Message.Contains("already exists") || ex.InnerException.Message.Contains("duplicate")))
     {
-        logger.LogInformation("Таблицы уже существуют. Миграции не требуются.");
+        logger.LogInformation("ℹ️ Таблицы уже существуют. Миграции не требуются.");
+    }
+    catch (Npgsql.NpgsqlException ex)
+    {
+        logger.LogError(ex, "❌ Ошибка PostgreSQL: {ErrorMessage}. Код: {ErrorCode}", ex.Message, ex.ErrorCode);
     }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Не удалось применить миграции (возможно, таблицы уже существуют)");
-        // Не прерываем работу приложения, продолжаем запуск
+        logger.LogError(ex, "❌ Общая ошибка при работе с БД: {ErrorMessage}", ex.Message);
+        logger.LogWarning("⚠️ Продолжаем запуск приложения без БД...");
     }
 }
 

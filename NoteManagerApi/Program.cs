@@ -16,39 +16,58 @@ var builder = WebApplication.CreateBuilder(args);
 //БД + Identity
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Исправляем connection string для PostgreSQL (добавляем sslmode=require если нужно)
-string fixedConnectionString = connectionString;
-if (!string.IsNullOrEmpty(connectionString) && 
-    (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://") || connectionString.Contains("PostgreSQL")))
+// Функция конвертации PostgreSQL URL в key=value формат
+static string ToKeyValuePg(string raw)
 {
-    if (connectionString.Contains("?sslmode=", StringComparison.OrdinalIgnoreCase) || 
-        connectionString.Contains("&sslmode=", StringComparison.OrdinalIgnoreCase))
+    if (string.IsNullOrWhiteSpace(raw)) return raw;
+    if (!(raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+          raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+        return raw;
+
+    var uri = new Uri(raw);
+    var userInfo = Uri.UnescapeDataString(uri.UserInfo ?? "");
+    var creds = userInfo.Split(':', 2);
+    var user = creds.ElementAtOrDefault(0);
+    var pass = creds.ElementAtOrDefault(1);
+    var host = uri.Host;
+    var port = uri.IsDefaultPort ? 5432 : uri.Port;
+    var db   = uri.AbsolutePath.TrimStart('/');
+
+    var csb = new Npgsql.NpgsqlConnectionStringBuilder
     {
-        // sslmode уже есть со значением
-        fixedConnectionString = connectionString;
-    }
-    else if (connectionString.Contains("?sslmode", StringComparison.OrdinalIgnoreCase))
+        Host = host,
+        Port = port,
+        Database = db,
+        Username = user,
+        Password = pass,
+        SslMode = Npgsql.SslMode.Require,      // по умолчанию
+        Pooling = false,                        // для отладки
+        Timeout = 10,
+        CommandTimeout = 10
+    };
+
+    var query = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+    foreach (var kv in query)
     {
-        // sslmode есть но без значения, заменяем
-        fixedConnectionString = connectionString.Replace("?sslmode", "?sslmode=require");
+        var parts = kv.Split('=', 2);
+        if (parts.Length != 2) continue;
+        var key = parts[0];
+        var value = Uri.UnescapeDataString(parts[1]);
+
+        if (key.Equals("sslmode", StringComparison.OrdinalIgnoreCase) &&
+            Enum.TryParse<Npgsql.SslMode>(value, true, out var mode))
+            csb.SslMode = mode;
+
+        if (key.Equals("pooling", StringComparison.OrdinalIgnoreCase) &&
+            bool.TryParse(value, out var pooling))
+            csb.Pooling = pooling;
     }
-    else if (connectionString.Contains("&sslmode", StringComparison.OrdinalIgnoreCase))
-    {
-        // sslmode есть но без значения в середине строки
-        fixedConnectionString = connectionString.Replace("&sslmode", "&sslmode=require");
-    }
-    else
-    {
-        // sslmode вообще нет, добавляем
-        fixedConnectionString = connectionString.Contains("?") ? connectionString + "&sslmode=require" : connectionString + "?sslmode=require";
-    }
-    
-    // Отключаем connection pooling для отладки
-    if (!fixedConnectionString.Contains("Pooling=", StringComparison.OrdinalIgnoreCase))
-    {
-        fixedConnectionString += (fixedConnectionString.Contains("?") ? "&" : "?") + "Pooling=false";
-    }
+
+    return csb.ConnectionString;
 }
+
+// Конвертируем URL в key=value формат для EF Core
+var fixedConnectionString = ToKeyValuePg(connectionString);
 
 // Поддержка SQL Server и PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

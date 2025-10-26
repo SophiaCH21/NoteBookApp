@@ -206,17 +206,7 @@ using (var scope = app.Services.CreateScope())
                     logger.LogError("❌ Host is null or empty");
                 }
 
-                // Прямая проверка Npgsql - используем уже исправленный connection string
-                try {
-                    logger.LogInformation("🔧 Тестируем connection string: {UrlForOpen}", fixedConnectionString.Substring(0, Math.Min(60, fixedConnectionString.Length)) + "...");
-
-                    using var npg = new Npgsql.NpgsqlConnection(fixedConnectionString);
-                    npg.Open();
-                    logger.LogInformation("✅ Npgsql connection open OK");
-                    npg.Close();
-                } catch (Exception ex) {
-                    logger.LogError(ex, "❌ Npgsql connection FAILED: {Message}", ex.Message);
-                }
+                logger.LogInformation("ℹ️ Пропускаем прямую проверку Npgsql - полагаемся только на EF Core");
             }
             catch (Exception ex)
             {
@@ -254,6 +244,17 @@ using (var scope = app.Services.CreateScope())
             {
                 logger.LogError(ex, "❌ key=value parsing or connection failed");
             }
+        }
+
+        // Принудительно очищаем все кэши Npgsql
+        try 
+        {
+            Npgsql.NpgsqlConnection.ClearAllPools();
+            logger.LogInformation("🧹 Очистили все connection pools Npgsql");
+        } 
+        catch (Exception ex) 
+        {
+            logger.LogWarning(ex, "⚠️ Не удалось очистить connection pools");
         }
 
         // Проверяем подключение к БД через EF Core

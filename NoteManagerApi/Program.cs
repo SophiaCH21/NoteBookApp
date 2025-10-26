@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using NoteManagerApi.Data;
 using NoteManagerApi.Helpers;
@@ -78,12 +79,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         // PostgreSQL для Render с исправленным connection string
         options.UseNpgsql(fixedConnectionString)
                .EnableDetailedErrors()
-               .EnableSensitiveDataLogging();
+               .EnableSensitiveDataLogging()
+               .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
     else
     {
         // SQL Server для локальной разработки
-        options.UseSqlServer(connectionString);
+        options.UseSqlServer(connectionString)
+               .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 });
 

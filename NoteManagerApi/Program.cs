@@ -17,7 +17,8 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 // Поддержка SQL Server и PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("PostgreSQL"))
+    if (!string.IsNullOrEmpty(connectionString) && 
+        (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://") || connectionString.Contains("PostgreSQL")))
     {
         // PostgreSQL для Render
         options.UseNpgsql(connectionString);

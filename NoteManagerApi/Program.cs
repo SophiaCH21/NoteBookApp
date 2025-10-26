@@ -16,14 +16,42 @@ var builder = WebApplication.CreateBuilder(args);
 //БД + Identity
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
+// Исправляем connection string для PostgreSQL (добавляем sslmode=require если нужно)
+string fixedConnectionString = connectionString;
+if (!string.IsNullOrEmpty(connectionString) && 
+    (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://") || connectionString.Contains("PostgreSQL")))
+{
+    if (connectionString.Contains("?sslmode=", StringComparison.OrdinalIgnoreCase) || 
+        connectionString.Contains("&sslmode=", StringComparison.OrdinalIgnoreCase))
+    {
+        // sslmode уже есть со значением
+        fixedConnectionString = connectionString;
+    }
+    else if (connectionString.Contains("?sslmode", StringComparison.OrdinalIgnoreCase))
+    {
+        // sslmode есть но без значения, заменяем
+        fixedConnectionString = connectionString.Replace("?sslmode", "?sslmode=require");
+    }
+    else if (connectionString.Contains("&sslmode", StringComparison.OrdinalIgnoreCase))
+    {
+        // sslmode есть но без значения в середине строки
+        fixedConnectionString = connectionString.Replace("&sslmode", "&sslmode=require");
+    }
+    else
+    {
+        // sslmode вообще нет, добавляем
+        fixedConnectionString = connectionString.Contains("?") ? connectionString + "&sslmode=require" : connectionString + "?sslmode=require";
+    }
+}
+
 // Поддержка SQL Server и PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (!string.IsNullOrEmpty(connectionString) && 
         (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://") || connectionString.Contains("PostgreSQL")))
     {
-        // PostgreSQL для Render
-        options.UseNpgsql(connectionString);
+        // PostgreSQL для Render с исправленным connection string
+        options.UseNpgsql(fixedConnectionString);
     }
     else
     {
@@ -135,6 +163,7 @@ using (var scope = app.Services.CreateScope())
         // Логируем информацию о подключении
         var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
         logger.LogInformation("🔍 RAW Connection String: {ConnStr}", connStr ?? "NULL");
+        logger.LogInformation("🔧 FIXED Connection String for EF Core: {FixedConnStr}", fixedConnectionString ?? "NULL");
         // Детальная диагностика подключения к PostgreSQL (поддержка URL и key=value)
         if (!string.IsNullOrEmpty(connStr) && (connStr.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
             || connStr.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))

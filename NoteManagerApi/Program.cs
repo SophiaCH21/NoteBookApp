@@ -42,6 +42,12 @@ if (!string.IsNullOrEmpty(connectionString) &&
         // sslmode вообще нет, добавляем
         fixedConnectionString = connectionString.Contains("?") ? connectionString + "&sslmode=require" : connectionString + "?sslmode=require";
     }
+    
+    // Отключаем connection pooling для отладки
+    if (!fixedConnectionString.Contains("Pooling=", StringComparison.OrdinalIgnoreCase))
+    {
+        fixedConnectionString += (fixedConnectionString.Contains("?") ? "&" : "?") + "Pooling=false";
+    }
 }
 
 // Поддержка SQL Server и PostgreSQL
@@ -51,7 +57,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://") || connectionString.Contains("PostgreSQL")))
     {
         // PostgreSQL для Render с исправленным connection string
-        options.UseNpgsql(fixedConnectionString);
+        options.UseNpgsql(fixedConnectionString)
+               .EnableDetailedErrors()
+               .EnableSensitiveDataLogging();
     }
     else
     {
@@ -255,6 +263,30 @@ using (var scope = app.Services.CreateScope())
         catch (Exception ex) 
         {
             logger.LogWarning(ex, "⚠️ Не удалось очистить connection pools");
+        }
+
+        // Явная проверка подключения с детальными ошибками
+        try
+        {
+            var efConn = db.Database.GetDbConnection();
+            var original = efConn.ConnectionString;
+            efConn.ConnectionString = fixedConnectionString; // тот же, что в DbContext
+            efConn.Open();
+            logger.LogInformation("✅ EF raw connection open OK");
+            efConn.Close();
+            efConn.ConnectionString = original;
+        }
+        catch (Npgsql.PostgresException ex)
+        {
+            logger.LogError(ex, "❌ PostgresException: {SqlState} {MessageText}", ex.SqlState, ex.MessageText);
+        }
+        catch (Npgsql.NpgsqlException ex)
+        {
+            logger.LogError(ex, "❌ NpgsqlException: {Message}", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "❌ General connection error: {Message}", ex.Message);
         }
 
         // Проверяем подключение к БД через EF Core

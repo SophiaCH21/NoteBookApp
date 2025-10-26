@@ -12,7 +12,7 @@ export default defineConfig({
     proxy: {
       // ВСЕ запросы /api → локальный backend
       '/api': {
-        target: 'https://localhost:7149',
+        target: 'http://localhost:5120',
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

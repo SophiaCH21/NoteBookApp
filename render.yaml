@@ -1,0 +1,50 @@
+services:
+  # PostgreSQL Database
+  - type: pg
+    name: notemanager-db
+    databaseName: notemanagerdb
+    databaseUser: notemanageruser
+    plan: free
+
+  # Backend API
+  - type: web
+    name: notemanager-api
+    env: docker
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./NoteManagerApi/Dockerfile
+    dockerContext: ./NoteManagerApi
+    healthCheckPath: /swagger
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: notemanager-db
+          property: connectionString
+      - key: Jwt__Key
+        generateValue: true
+        sync: false
+      - key: Jwt__Issuer
+        value: NoteManagerApi
+      - key: Jwt__Audience
+        value: NoteManagerClient
+      - key: FrontendUrl
+        value: https://YOUR_FRONTEND_NAME.onrender.com
+    buildCommand: ""
+    startCommand: ""
+
+  # Frontend (Static Site)
+  - type: web
+    name: notemanager-frontend
+    env: static
+    region: frankfurt
+    plan: free
+    # Примечание: Static sites не поддерживают env vars в build time
+    # Нужно задать VITE_API_URL вручную в Render Dashboard после деплоя
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    pullRequestPreviewsEnabled: false
+

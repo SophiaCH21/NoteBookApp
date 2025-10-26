@@ -8,6 +8,8 @@ using NoteManagerApi.Services;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
+using System.Net;
+using System.Net.Sockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -151,8 +153,67 @@ using (var scope = app.Services.CreateScope())
             logger.LogError("Connection string пуст или не найден!");
         }
 
-        // Проверяем подключение к БД
-        logger.LogInformation("Проверяем подключение к базе данных...");
+        // Детальная диагностика подключения к PostgreSQL
+        if (!string.IsNullOrEmpty(connStr) && (connStr.Contains("postgresql://") || connStr.Contains("postgres://")))
+        {
+            try
+            {
+                var csb = new Npgsql.NpgsqlConnectionStringBuilder(connStr);
+                logger.LogInformation("🔍 DB host: {Host}, port: {Port}, db: {Database}, user: {Username}", 
+                    csb.Host, csb.Port, csb.Database, csb.Username);
+
+                // DNS проверка
+                try 
+                {
+                    var entry = Dns.GetHostEntry(csb.Host);
+                    logger.LogInformation("✅ DNS resolve {Host} OK: {IPs}", 
+                        csb.Host, string.Join(", ", entry.AddressList.Select(a => a.ToString())));
+                } 
+                catch (Exception ex) 
+                {
+                    logger.LogError(ex, "❌ DNS resolve FAILED for host {Host}", csb.Host);
+                }
+
+                // TCP проверка доступности порта
+                try 
+                {
+                    using var tcp = new TcpClient();
+                    tcp.ReceiveTimeout = 10000; // 10 секунд
+                    tcp.SendTimeout = 10000;
+                    tcp.Connect(csb.Host, csb.Port);
+                    logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", csb.Host, csb.Port);
+                } 
+                catch (Exception ex) 
+                {
+                    logger.LogError(ex, "❌ TCP connect to {Host}:{Port} FAILED", csb.Host, csb.Port);
+                }
+
+                // Прямая проверка Npgsql соединения
+                try 
+                {
+                    csb.Timeout = 10;
+                    csb.CommandTimeout = 10;
+                    csb.SslMode = Npgsql.SslMode.Require;
+                    csb.TrustServerCertificate = true;
+
+                    using var npg = new Npgsql.NpgsqlConnection(csb.ConnectionString);
+                    npg.Open();
+                    logger.LogInformation("✅ Npgsql connection open OK");
+                    npg.Close();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "❌ Npgsql connection FAILED: {Message}", ex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "❌ Connection string parsing failed");
+            }
+        }
+
+        // Проверяем подключение к БД через EF Core
+        logger.LogInformation("Проверяем подключение к базе данных через EF Core...");
         if (db.Database.CanConnect())
         {
             logger.LogInformation("✅ База данных доступна! Применяем миграции...");
@@ -161,7 +222,7 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
-            logger.LogError("❌ База данных НЕДОСТУПНА. Проверьте connection string и доступность БД.");
+            logger.LogError("❌ База данных НЕДОСТУПНА через EF Core. Проверьте результаты диагностики выше.");
         }
     }
     catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException != null && 

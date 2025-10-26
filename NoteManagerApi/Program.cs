@@ -178,9 +178,30 @@ using (var scope = app.Services.CreateScope())
 
                 // Прямая проверка Npgsql
                 try {
-                    var urlForOpen = connStr.Contains("sslmode=", StringComparison.OrdinalIgnoreCase)
-                        ? connStr
-                        : (connStr.Contains("?") ? connStr + "&sslmode=require" : connStr + "?sslmode=require");
+                    string urlForOpen;
+                    if (connStr.Contains("?sslmode=", StringComparison.OrdinalIgnoreCase) || 
+                        connStr.Contains("&sslmode=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // sslmode уже есть со значением
+                        urlForOpen = connStr;
+                    }
+                    else if (connStr.Contains("?sslmode", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // sslmode есть но без значения, заменяем
+                        urlForOpen = connStr.Replace("?sslmode", "?sslmode=require");
+                    }
+                    else if (connStr.Contains("&sslmode", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // sslmode есть но без значения в середине строки
+                        urlForOpen = connStr.Replace("&sslmode", "&sslmode=require");
+                    }
+                    else
+                    {
+                        // sslmode вообще нет, добавляем
+                        urlForOpen = connStr.Contains("?") ? connStr + "&sslmode=require" : connStr + "?sslmode=require";
+                    }
+
+                    logger.LogInformation("🔧 Исправленный connection string: {UrlForOpen}", urlForOpen.Substring(0, Math.Min(60, urlForOpen.Length)) + "...");
 
                     using var npg = new Npgsql.NpgsqlConnection(urlForOpen);
                     npg.Open();
@@ -273,4 +294,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
 

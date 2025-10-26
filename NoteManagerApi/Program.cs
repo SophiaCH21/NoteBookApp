@@ -206,34 +206,11 @@ using (var scope = app.Services.CreateScope())
                     logger.LogError("❌ Host is null or empty");
                 }
 
-                // Прямая проверка Npgsql
+                // Прямая проверка Npgsql - используем уже исправленный connection string
                 try {
-                    string urlForOpen;
-                    if (connStr.Contains("?sslmode=", StringComparison.OrdinalIgnoreCase) || 
-                        connStr.Contains("&sslmode=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // sslmode уже есть со значением
-                        urlForOpen = connStr;
-                    }
-                    else if (connStr.Contains("?sslmode", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // sslmode есть но без значения, заменяем
-                        urlForOpen = connStr.Replace("?sslmode", "?sslmode=require");
-                    }
-                    else if (connStr.Contains("&sslmode", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // sslmode есть но без значения в середине строки
-                        urlForOpen = connStr.Replace("&sslmode", "&sslmode=require");
-                    }
-                    else
-                    {
-                        // sslmode вообще нет, добавляем
-                        urlForOpen = connStr.Contains("?") ? connStr + "&sslmode=require" : connStr + "?sslmode=require";
-                    }
+                    logger.LogInformation("🔧 Тестируем connection string: {UrlForOpen}", fixedConnectionString.Substring(0, Math.Min(60, fixedConnectionString.Length)) + "...");
 
-                    logger.LogInformation("🔧 Исправленный connection string: {UrlForOpen}", urlForOpen.Substring(0, Math.Min(60, urlForOpen.Length)) + "...");
-
-                    using var npg = new Npgsql.NpgsqlConnection(urlForOpen);
+                    using var npg = new Npgsql.NpgsqlConnection(fixedConnectionString);
                     npg.Open();
                     logger.LogInformation("✅ Npgsql connection open OK");
                     npg.Close();

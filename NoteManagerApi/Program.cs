@@ -126,23 +126,41 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
     try
     {
-        db.Database.Migrate();
+        // Проверяем подключение к БД
+        if (db.Database.CanConnect())
+        {
+            logger.LogInformation("База данных доступна. Пытаемся применить миграции...");
+            db.Database.Migrate();
+            logger.LogInformation("Миграции успешно применены.");
+        }
+        else
+        {
+            logger.LogWarning("База данных недоступна. Миграции не применены.");
+        }
+    }
+    catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException != null && 
+        (ex.InnerException.Message.Contains("already exists") || ex.InnerException.Message.Contains("duplicate")))
+    {
+        logger.LogInformation("Таблицы уже существуют. Миграции не требуются.");
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Ошибка при применении миграций");
+        logger.LogWarning(ex, "Не удалось применить миграции (возможно, таблицы уже существуют)");
+        // Не прерываем работу приложения, продолжаем запуск
     }
 }
+
+// Swagger доступен для всех сред (включая Production)
+app.UseSwagger();
+app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notes API v1"));
 
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    // Включение Swagger только в режиме разработки
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notes API v1"));
 }
 
 app.UseHttpsRedirection();

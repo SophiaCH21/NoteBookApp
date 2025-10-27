@@ -313,40 +313,6 @@ CORS__AllowedOrigins__0=<Frontend URL>
 
 ---
 
-## Локальная разработка
-
-### Требования
-- .NET 8.0 SDK
-- Node.js 18+
-- PostgreSQL или SQL Server
-
-### Запуск проекта
-
-#### Backend
-```bash
-cd NoteManagerApi
-dotnet restore
-dotnet ef database update
-dotnet run
-```
-
-#### Frontend
-```bash
-cd NoteAppFrontend
-npm install
-npm run dev
-```
-
-### API Endpoints
-- **POST** `/api/auth/register` - Регистрация пользователя
-- **POST** `/api/auth/login` - Вход в систему
-- **GET** `/api/notes` - Получение заметок пользователя
-- **POST** `/api/notes` - Создание новой заметки
-- **PUT** `/api/notes/{id}` - Обновление заметки
-- **DELETE** `/api/notes/{id}` - Удаление заметки
-
----
-
 ## Демо и ссылки
 
 **🌐 Рабочее приложение:** [https://notemanager-frontend.onrender.com](https://notemanager-frontend.onrender.com)  

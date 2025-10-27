@@ -17,7 +17,6 @@ var builder = WebApplication.CreateBuilder(args);
 //БД + Identity
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Функция конвертации PostgreSQL URL в key=value формат
 static string ToKeyValuePg(string raw)
 {
     if (string.IsNullOrWhiteSpace(raw)) return raw;
@@ -41,8 +40,8 @@ static string ToKeyValuePg(string raw)
         Database = db,
         Username = user,
         Password = pass,
-        SslMode = Npgsql.SslMode.Require,      // по умолчанию
-        Pooling = false,                        // для отладки
+        SslMode = Npgsql.SslMode.Require,
+        Pooling = false,
         Timeout = 10,
         CommandTimeout = 10
     };
@@ -67,16 +66,13 @@ static string ToKeyValuePg(string raw)
     return csb.ConnectionString;
 }
 
-// Конвертируем URL в key=value формат для EF Core
 var fixedConnectionString = ToKeyValuePg(connectionString);
 
-// Поддержка SQL Server и PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (!string.IsNullOrEmpty(connectionString) && 
         (connectionString.Contains("postgresql://") || connectionString.Contains("postgres://") || connectionString.Contains("PostgreSQL")))
     {
-        // PostgreSQL для Render с исправленным connection string
         options.UseNpgsql(fixedConnectionString)
                .EnableDetailedErrors()
                .EnableSensitiveDataLogging()
@@ -84,7 +80,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
     else
     {
-        // SQL Server для локальной разработки
         options.UseSqlServer(connectionString)
                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
@@ -96,7 +91,6 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>()
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// Регистрация сервисов
 builder.Services.AddScoped<INoteRepository, NoteRepository>();
 builder.Services.AddScoped<INoteService, NoteService>();
 
@@ -105,7 +99,6 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Notes API", Version = "v1" });
     
-    // JWT Authentication для Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -162,7 +155,6 @@ builder.Services.AddAuthentication(options =>
 //      });
 // });
 
-// Получаем список разрешенных origin'ов из конфигурации или используем дефолтные
 var allowedOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>() 
     ?? new[] { "http://localhost:5173", "https://localhost:5173" };
 
@@ -182,7 +174,6 @@ builder.Services.AddScoped<JwtTokenGenerator>();
 
 var app = builder.Build();
 
-// Детальное логирование и применение миграций
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -190,11 +181,9 @@ using (var scope = app.Services.CreateScope())
     
     try
     {
-        // Логируем информацию о подключении
         var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
         logger.LogInformation("🔍 RAW Connection String: {ConnStr}", connStr ?? "NULL");
         logger.LogInformation("🔧 FIXED Connection String for EF Core: {FixedConnStr}", fixedConnectionString ?? "NULL");
-        // Детальная диагностика подключения к PostgreSQL (поддержка URL и key=value)
         if (!string.IsNullOrEmpty(connStr) && (connStr.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
             || connStr.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
         {
@@ -211,109 +200,15 @@ using (var scope = app.Services.CreateScope())
 
                 logger.LogInformation("🔍 DB host: {Host}, port: {Port}, db: {Db}, user: {User}", host, port, dbName, user);
 
-                // DNS
-                try {
-                    var entry = Dns.GetHostEntry(host);
-                    logger.LogInformation("✅ DNS resolve {Host} OK: {IPs}", host, string.Join(", ", entry.AddressList.Select(a => a.ToString())));
-                } catch (Exception ex) {
-                    logger.LogError(ex, "❌ DNS resolve FAILED for host {Host}", host);
-                }
-
-                // TCP
-                if (!string.IsNullOrEmpty(host))
-                {
-                    try {
-                        using var tcp = new TcpClient();
-                        tcp.ReceiveTimeout = 10000; tcp.SendTimeout = 10000;
-                        tcp.Connect(host, port);
-                        logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", host, port);
-                    } catch (Exception ex) {
-                        logger.LogError(ex, "❌ TCP connect to {Host}:{Port} FAILED", host, port);
-                    }
-                }
-                else
-                {
-                    logger.LogError("❌ Host is null or empty");
-                }
-
-                logger.LogInformation("ℹ️ Пропускаем прямую проверку Npgsql - полагаемся только на EF Core");
+                logger.LogInformation("Database connection diagnostics completed");
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "❌ URL parsing failed for PostgreSQL connection string");
             }
         }
-        else
-        {
-            // Старый путь: key=value формат
-            try
-            {
-                var csb = new Npgsql.NpgsqlConnectionStringBuilder(connStr)
-                {
-                    Timeout = 10,
-                    CommandTimeout = 10,
-                    SslMode = Npgsql.SslMode.Require
-                };
 
-                logger.LogInformation("🔍 DB host: {Host}, port: {Port}, db: {Db}, user: {User}", csb.Host, csb.Port, csb.Database, csb.Username);
-
-                if (!string.IsNullOrEmpty(csb.Host))
-                {
-                    using var tcp = new TcpClient();
-                    tcp.ReceiveTimeout = 10000; tcp.SendTimeout = 10000;
-                    tcp.Connect(csb.Host, csb.Port);
-                    logger.LogInformation("✅ TCP connect to {Host}:{Port} OK", csb.Host, csb.Port);
-                }
-
-                using var npg = new Npgsql.NpgsqlConnection(csb.ConnectionString);
-                npg.Open();
-                logger.LogInformation("✅ Npgsql connection open OK");
-                npg.Close();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "❌ key=value parsing or connection failed");
-            }
-        }
-
-        // Принудительно очищаем все кэши Npgsql
-        try 
-        {
-            Npgsql.NpgsqlConnection.ClearAllPools();
-            logger.LogInformation("🧹 Очистили все connection pools Npgsql");
-        } 
-        catch (Exception ex) 
-        {
-            logger.LogWarning(ex, "⚠️ Не удалось очистить connection pools");
-        }
-
-        // Явная проверка подключения с детальными ошибками
-        try
-        {
-            var efConn = db.Database.GetDbConnection();
-            var original = efConn.ConnectionString;
-            efConn.ConnectionString = fixedConnectionString; // тот же, что в DbContext
-            efConn.Open();
-            logger.LogInformation("✅ EF raw connection open OK");
-            efConn.Close();
-            efConn.ConnectionString = original;
-        }
-        catch (Npgsql.PostgresException ex)
-        {
-            logger.LogError(ex, "❌ PostgresException: {SqlState} {MessageText}", ex.SqlState, ex.MessageText);
-        }
-        catch (Npgsql.NpgsqlException ex)
-        {
-            logger.LogError(ex, "❌ NpgsqlException: {Message}", ex.Message);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "❌ General connection error: {Message}", ex.Message);
-        }
-
-        // Проверяем подключение к БД через EF Core
-        logger.LogInformation("Проверяем подключение к базе данных через EF Core...");
-        logger.LogInformation("🔍 EF Core Connection String: {EfConnStr}", db.Database.GetConnectionString() ?? "NULL");
+        Npgsql.NpgsqlConnection.ClearAllPools();
         if (db.Database.CanConnect())
         {
             logger.LogInformation("✅ База данных доступна! Применяем миграции...");
@@ -341,7 +236,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Swagger доступен для всех сред (включая Production)
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notes API v1"));
 
